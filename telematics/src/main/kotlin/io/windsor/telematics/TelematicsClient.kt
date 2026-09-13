@@ -36,6 +36,7 @@ class TelematicsClient private constructor(
     private val requestedVin: String?,
     private val clock: () -> Long,
     private val transport: Transport,
+    private val onRawResponse: (label: String, content: String) -> Unit = { _, _ -> },
 ) {
     private val deviceId: String = makeDeviceId(phone)
 
@@ -53,14 +54,22 @@ class TelematicsClient private constructor(
          * @param phone iSmart India phone number (10-digit; longer numbers are trimmed to the last 10 digits).
          * @param password the iSmart app password (at most 16 chars are sent, matching the app).
          * @param vin optional specific vehicle VIN; otherwise the first vehicle in the account is used.
+         * @param onRawResponse invoked with every response body verbatim, so callers can inspect exactly
+         *   what the servers returned. TAP frames arrive as hex, gateway responses as decrypted JSON.
          */
-        fun create(phone: String, password: String, vin: String? = null): TelematicsClient =
+        fun create(
+            phone: String,
+            password: String,
+            vin: String? = null,
+            onRawResponse: (label: String, content: String) -> Unit = { _, _ -> },
+        ): TelematicsClient =
             TelematicsClient(
                 phone = normalizePhone(phone),
                 password = password,
                 requestedVin = vin,
                 clock = { System.currentTimeMillis() / 1000 },
                 transport = Http(),
+                onRawResponse = onRawResponse,
             )
 
         /** Test hook: construct with a fixed clock and injected transport. */
@@ -70,7 +79,8 @@ class TelematicsClient private constructor(
             vin: String? = null,
             clock: () -> Long = { System.currentTimeMillis() / 1000 },
             transport: Transport = Http(),
-        ): TelematicsClient = TelematicsClient(normalizePhone(phone), password, vin, clock, transport)
+            onRawResponse: (label: String, content: String) -> Unit = { _, _ -> },
+        ): TelematicsClient = TelematicsClient(normalizePhone(phone), password, vin, clock, transport, onRawResponse)
     }
 
     private fun nextEvent(): Int {
@@ -206,6 +216,7 @@ class TelematicsClient private constructor(
             transport.post(TAP_STATUS_URL, body, headers)
         }
         if (response.status >= 400) throw TelematicsException("$label failed: HTTP ${response.status}")
+        onRawResponse(label, response.body)
         return response.body
     }
 
@@ -240,6 +251,7 @@ class TelematicsClient private constructor(
         val decrypted = kotlinx.coroutines.withContext(kotlinx.coroutines.Dispatchers.IO) {
             decrypt(body = response.body, sendDate = sendDate, contentType = responseContentType)
         }
+        onRawResponse(cleanPath, decrypted)
         val parsed = jsonParse(decrypted)
         val code = (parsed["code"] as? kotlinx.serialization.json.JsonPrimitive)?.let { it.content.toIntOrNull() }
         if (code == 7) {
