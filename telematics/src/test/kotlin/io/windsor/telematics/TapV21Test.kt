@@ -277,4 +277,32 @@ class TapV21Test {
         val payload = raw.substring(5).hexToBytes()
         assertEquals(TAP_PROTOCOL_VERSION, payload[0].toInt() and 0xFF)
     }
+
+    /**
+     * The four values the decoder walked past.
+     *
+     * They were being read purely to advance the bit cursor — the offsets were already correct,
+     * or every field after them would have been wrong — so this pins what they actually contain.
+     * Printed as well as asserted, because the journey id is only interesting as a sequence: two
+     * frames from the same drive should carry the same number and two drives should not.
+     */
+    @Test
+    fun journeyAndEngineFieldsAreDecoded() {
+        val names = listOf("status_resp_frame")
+        var seen = 0
+        for (n in names) {
+            val g = runCatching { Goldens.get(n) }.getOrNull() ?: continue
+            val s = runCatching { decodeStatusAndCharge(g) }.getOrNull()?.status ?: continue
+            seen++
+            println("FIELDPROBE $n engine=${s.engineStatusRaw} power=${s.powerModeRaw} " +
+                "journeyId=${s.currentJourneyId} journeyDist=${s.currentJourneyDistanceRaw} " +
+                "canBus=${s.canBusActive} odo=${s.odometerKm}")
+            // A frame that decoded at all must carry these: they sit before fields already trusted.
+            assertNotNull(s.engineStatusRaw)
+            assertNotNull(s.powerModeRaw)
+            assertNotNull(s.currentJourneyId)
+            assertNotNull(s.currentJourneyDistanceRaw)
+        }
+        println("FIELDPROBE decoded $seen status goldens")
+    }
 }

@@ -64,6 +64,34 @@ data class Status(
     val rearLeftTyrePsi: Double? = null,
     val rearRightTyrePsi: Double? = null,
     val tyreMonitorStatus: Int? = null,
+    /**
+     * The car's own engine/ready state, as the byte it sends.
+     *
+     * Raw because the enumeration behind it is not established — the protocol carries eight bits
+     * and nothing in the captured frames pins down what each value means. Exposed anyway, because
+     * a value nobody records cannot be decoded later.
+     */
+    val engineStatusRaw: Int? = null,
+    /** The car's own power mode byte. Raw for the same reason as [engineStatusRaw]. */
+    val powerModeRaw: Int? = null,
+    /**
+     * The car's own identifier for the journey it is on.
+     *
+     * The most useful thing in this frame that nobody was reading. Everything downstream infers
+     * where one drive ends and the next begins from how long the car has been stationary, and
+     * every threshold in that inference is a guess about traffic, parking and drop-offs. The car
+     * does not guess: it numbers its journeys, and a change in this value is a boundary stated as
+     * fact rather than deduced.
+     */
+    val currentJourneyId: Int? = null,
+    /**
+     * Distance covered on the current journey, in the units the car sends.
+     *
+     * Raw because the scale is unconfirmed. The neighbouring mileage fields are tenths of a
+     * kilometre and this is very likely the same, but "very likely" is how a distance ends up out
+     * by a factor of ten, so the caller is handed the integer and told what it is.
+     */
+    val currentJourneyDistanceRaw: Int? = null,
     val canBusActive: Boolean? = null,
     val lastCanActivity: Int? = null,
     val handbrake: Boolean? = null,

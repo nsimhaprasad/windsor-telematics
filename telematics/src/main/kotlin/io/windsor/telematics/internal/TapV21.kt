@@ -228,8 +228,8 @@ internal fun decodeStatusApp(app: ByteArray): Status? = try {
     val engineStatus = r.read(8)
     val powerMode = r.read(8)
     r.read(16) // lastKeySeen
-    r.read(16) // currentJourneyDistance
-    r.read(31) // currentJourneyID
+    val currentJourneyDistance = r.read(16)
+    val currentJourneyId = r.read(31)
     val interiorTemp = r.readConstrained(-128L, 127L).toInt()
     val exteriorTemp = r.readConstrained(-128L, 127L).toInt()
     val fuelLevel = r.read(8)
@@ -283,6 +283,10 @@ internal fun decodeStatusApp(app: ByteArray): Status? = try {
         rearLeftTyrePsi = rearLeftTyre?.let { psi(it) },
         rearRightTyrePsi = rearRightTyre?.let { psi(it) },
         tyreMonitorStatus = tyreMonitor,
+        engineStatusRaw = engineStatus,
+        powerModeRaw = powerMode,
+        currentJourneyId = currentJourneyId,
+        currentJourneyDistanceRaw = currentJourneyDistance,
         canBusActive = canBusActive,
         lastCanActivity = lastCan,
         handbrake = handbrake,
